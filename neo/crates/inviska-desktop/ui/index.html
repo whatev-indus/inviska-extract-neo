@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inviska Extract Neo</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="mark">IE</div>
+          <div>
+            <h1>Inviska Extract Neo</h1>
+            <p>Matroska extraction workspace</p>
+          </div>
+        </div>
+
+        <label>
+          MKVToolNix folder
+          <span class="input-action">
+            <input id="tool-dir" type="text" placeholder="Auto-detect" />
+            <button id="pick-tools" type="button" title="Choose MKVToolNix folder">...</button>
+          </span>
+        </label>
+
+        <label>
+          Output folder
+          <span class="input-action">
+            <input id="output-dir" type="text" placeholder="Same as source file" />
+            <button id="pick-output" type="button" title="Choose output folder">...</button>
+          </span>
+        </label>
+
+        <div class="toggles">
+          <label><input id="timestamps" type="checkbox" /> Timestamps</label>
+          <label><input id="cues" type="checkbox" /> Cues</label>
+          <label><input id="chapters" type="checkbox" /> Chapters</label>
+          <label><input id="cuesheet" type="checkbox" /> Cuesheet</label>
+          <label><input id="tags" type="checkbox" /> Tags</label>
+        </div>
+
+        <button id="discover" type="button">Find Tools</button>
+        <button id="preview-plan" type="button" disabled>Preview Plan</button>
+        <button id="extract" type="button" disabled>Extract Selected</button>
+        <button id="extract-queue" type="button" disabled>Extract Queue</button>
+      </aside>
+
+      <section class="workspace">
+        <div id="drop-zone" class="drop-zone">
+          <strong>Add MKV files</strong>
+          <span>Enter paths below or drop files into this window.</span>
+        </div>
+
+        <div class="path-row">
+          <input id="file-path" type="text" placeholder="/path/to/movie.mkv" />
+          <button id="pick-file" type="button">Choose</button>
+          <button id="probe" type="button">Probe</button>
+        </div>
+
+        <section class="panel">
+          <header>
+            <h2>Files</h2>
+            <span id="tool-status">Tools not checked</span>
+          </header>
+          <div id="files" class="list empty">No files loaded</div>
+        </section>
+
+        <section class="panel">
+          <header>
+            <h2>Tracks</h2>
+            <span class="panel-actions">
+              <button id="select-supported" type="button" disabled>Select Supported</button>
+              <button id="clear-selection" type="button" disabled>Clear</button>
+            </span>
+          </header>
+          <div id="tracks" class="list empty">No file loaded</div>
+        </section>
+
+        <section class="panel">
+          <header>
+            <h2>Attachments</h2>
+          </header>
+          <div id="attachments" class="list empty">No attachments loaded</div>
+        </section>
+
+        <section class="panel">
+          <header>
+            <h2>Plan</h2>
+            <span id="plan-count">No commands</span>
+          </header>
+          <pre id="plan-preview" class="plan-preview"></pre>
+        </section>
+
+        <section class="panel">
+          <header>
+            <h2>Progress</h2>
+            <span id="progress-label">Idle</span>
+          </header>
+          <progress id="progress" max="100" value="0"></progress>
+          <pre id="log"></pre>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

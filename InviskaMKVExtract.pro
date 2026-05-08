@@ -1,8 +1,8 @@
 QT += core gui widgets network
 TEMPLATE = app
 
-VERSION = 1.0.0
-DISPLAY_VERSION = v1.0.0
+VERSION = 2.0.0
+DISPLAY_VERSION = v2.0.0
 NAME = "Inviska Extract Neo"
 NAME_NO_SPACES = "InviskaMKVExtract"
 

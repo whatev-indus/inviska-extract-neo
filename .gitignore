@@ -9,3 +9,4 @@ release/
 target/
 node_modules/
 dist/
+neo/crates/inviska-desktop/src-tauri/gen/

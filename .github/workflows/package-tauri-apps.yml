@@ -1,0 +1,173 @@
+name: Package Tauri apps
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version without the leading v
+        required: true
+        default: 2.0.0
+
+permissions:
+  contents: read
+
+env:
+  APP_NAME: Inviska Extract Neo
+  CARGO_TERM_COLOR: always
+
+jobs:
+  source:
+    name: Source archives
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          echo "VERSION=${{ github.event.inputs.version }}" >> "$GITHUB_ENV"
+          echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Package source
+        shell: bash
+        run: |
+          mkdir -p release
+          git archive --format=zip --prefix="${APP_NAME}_${VERSION}/" HEAD -o "release/${APP_NAME}_Source_${VERSION}.zip"
+          git archive --format=tar.gz --prefix="${APP_NAME}_${VERSION}/" HEAD -o "release/${APP_NAME}_Source_${VERSION}.tar.gz"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Inviska Extract Neo_Source_${{ steps.version.outputs.version }}
+          path: |
+            release/Inviska Extract Neo_Source_${{ steps.version.outputs.version }}.zip
+            release/Inviska Extract Neo_Source_${{ steps.version.outputs.version }}.tar.gz
+          if-no-files-found: error
+
+  macos-arm:
+    name: macOS ARM zip
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          echo "VERSION=${{ github.event.inputs.version }}" >> "$GITHUB_ENV"
+          echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+
+      - name: Build app bundle
+        working-directory: neo/crates/inviska-desktop
+        run: cargo tauri build --bundles app
+
+      - name: Package artifact
+        working-directory: neo/crates/inviska-desktop
+        shell: bash
+        run: |
+          mkdir -p release
+          ditto -c -k --keepParent "../../target/release/bundle/macos/${APP_NAME}.app" "release/${APP_NAME}_macOS_ARM_${VERSION}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Inviska Extract Neo_macOS_ARM_${{ steps.version.outputs.version }}
+          path: neo/crates/inviska-desktop/release/Inviska Extract Neo_macOS_ARM_${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
+
+  linux:
+    name: Linux ${{ matrix.label }} AppImage
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: x64
+            runner: ubuntu-24.04
+          - label: ARM
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          echo "VERSION=${{ github.event.inputs.version }}" >> "$GITHUB_ENV"
+          echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install system dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev libfuse2
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+
+      - name: Build AppImage
+        working-directory: neo/crates/inviska-desktop
+        run: cargo tauri build --bundles appimage
+
+      - name: Package artifact
+        working-directory: neo/crates/inviska-desktop
+        shell: bash
+        run: |
+          mkdir -p release
+          appimage="$(find ../../target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+          test -n "$appimage"
+          mv "$appimage" "release/${APP_NAME}_Linux_${{ matrix.label }}_${VERSION}.AppImage"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Inviska Extract Neo_Linux_${{ matrix.label }}_${{ steps.version.outputs.version }}
+          path: neo/crates/inviska-desktop/release/Inviska Extract Neo_Linux_${{ matrix.label }}_${{ steps.version.outputs.version }}.AppImage
+          if-no-files-found: error
+
+  windows:
+    name: Windows ${{ matrix.label }} MSI
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: x64
+            rust_target: x86_64-pc-windows-msvc
+          - label: ARM
+            rust_target: aarch64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          "VERSION=${{ github.event.inputs.version }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "version=${{ github.event.inputs.version }}" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.rust_target }}
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+
+      - name: Build MSI
+        working-directory: neo/crates/inviska-desktop
+        run: cargo tauri build --target ${{ matrix.rust_target }} --bundles msi
+
+      - name: Package artifact
+        working-directory: neo/crates/inviska-desktop
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          $msi = Get-ChildItem "..\..\target\${{ matrix.rust_target }}\release\bundle\msi" -Filter *.msi | Select-Object -First 1
+          if (-not $msi) { throw "MSI was not produced" }
+          Move-Item $msi.FullName "release\${env:APP_NAME}_Windows_${{ matrix.label }}_${env:VERSION}.msi"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Inviska Extract Neo_Windows_${{ matrix.label }}_${{ steps.version.outputs.version }}
+          path: neo/crates/inviska-desktop/release/Inviska Extract Neo_Windows_${{ matrix.label }}_${{ steps.version.outputs.version }}.msi
+          if-no-files-found: error
