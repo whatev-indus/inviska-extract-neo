@@ -1005,7 +1005,10 @@ Chapters: 4 entries
             }]),
         );
 
-        assert_eq!(command.program, PathBuf::from("/tools/mkvextract"));
+        assert_eq!(
+            command.program,
+            Path::new("/tools").join(executable_name("mkvextract"))
+        );
         assert_eq!(
             command.args,
             vec![
