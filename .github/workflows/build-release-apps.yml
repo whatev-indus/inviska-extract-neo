@@ -1,0 +1,235 @@
+name: Build release apps
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version without the leading v
+        required: true
+        default: 1.0.0
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+env:
+  APP_NAME: Inviska Extract Neo
+  TARGET_NAME: InviskaMKVExtract
+  QT_VERSION: 6.7.3
+
+jobs:
+  macos-arm:
+    name: macOS ARM zip
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="${{ github.event.inputs.version }}"
+          fi
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          cache: true
+
+      - name: Build release app
+        shell: bash
+        run: |
+          qmake CONFIG+=BuildRelease InviskaMKVExtract.pro
+          make -j"$(sysctl -n hw.ncpu)"
+          test "$(lipo -archs release/InviskaMKVExtract.app/Contents/MacOS/InviskaMKVExtract)" = "arm64"
+
+      - name: Deploy Qt frameworks
+        shell: bash
+        run: |
+          macdeployqt release/InviskaMKVExtract.app -always-overwrite
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" release/InviskaMKVExtract.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" release/InviskaMKVExtract.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleGetInfoString ${VERSION}" release/InviskaMKVExtract.app/Contents/Info.plist
+          codesign --force --deep --sign - release/InviskaMKVExtract.app
+          codesign --verify --deep --strict --verbose=2 release/InviskaMKVExtract.app
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          ditto -c -k --keepParent --sequesterRsrc --rsrc release/InviskaMKVExtract.app "release/${APP_NAME}_macOS_ARM_${VERSION}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Inviska Extract Neo_macOS_ARM_${{ steps.version.outputs.version }}
+          path: release/Inviska Extract Neo_macOS_ARM_${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
+
+  linux:
+    name: Linux ${{ matrix.label }} AppImage
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: x64
+            runner: ubuntu-24.04
+            appimage_arch: x86_64
+          - label: ARM
+            runner: ubuntu-24.04-arm
+            appimage_arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="${{ github.event.inputs.version }}"
+          fi
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Install system dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libgl1-mesa-dev libxcb-cursor0 libxcb-xinerama0 libxkbcommon-x11-0 fuse
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          cache: true
+
+      - name: Build release binary
+        shell: bash
+        run: |
+          qmake CONFIG+=BuildRelease InviskaMKVExtract.pro
+          make -j"$(nproc)"
+
+      - name: Build AppImage
+        shell: bash
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          cp release/invmextr AppDir/usr/bin/InviskaMKVExtract
+          cp Resources/Icon.png AppDir/usr/share/icons/hicolor/256x256/apps/inviska-extract-neo.png
+          cat > AppDir/usr/share/applications/inviska-extract-neo.desktop <<'DESKTOP'
+          [Desktop Entry]
+          Type=Application
+          Name=Inviska Extract Neo
+          Exec=InviskaMKVExtract
+          Icon=inviska-extract-neo
+          Categories=AudioVideo;Utility;
+          DESKTOP
+          curl -L -o linuxdeploy.AppImage "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${{ matrix.appimage_arch }}.AppImage"
+          curl -L -o linuxdeploy-plugin-qt.AppImage "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-${{ matrix.appimage_arch }}.AppImage"
+          chmod +x linuxdeploy.AppImage linuxdeploy-plugin-qt.AppImage
+          export QMAKE="$(command -v qmake)"
+          ./linuxdeploy.AppImage --appdir AppDir --plugin qt --output appimage
+          mv ./*.AppImage "release/${APP_NAME}_Linux_${{ matrix.label }}_${VERSION}.AppImage"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Inviska Extract Neo_Linux_${{ matrix.label }}_${{ steps.version.outputs.version }}
+          path: release/Inviska Extract Neo_Linux_${{ matrix.label }}_${{ steps.version.outputs.version }}.AppImage
+          if-no-files-found: error
+
+  windows:
+    name: Windows ${{ matrix.label }} MSI
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: x64
+            runner: windows-2022
+            qt_arch: win64_msvc2022_64
+            msvc_arch: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${env:GITHUB_REF_TYPE}" -eq "tag") {
+            $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          } else {
+            $version = "${{ github.event.inputs.version }}"
+          }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: ${{ matrix.qt_arch }}
+          cache: true
+
+      - name: Configure MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc_arch }}
+
+      - name: Build release executable
+        shell: cmd
+        run: |
+          qmake CONFIG+=BuildRelease InviskaMKVExtract.pro
+          nmake
+
+      - name: Deploy Qt files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          Copy-Item release\InviskaMKVExtract.exe package\
+          windeployqt --release --no-translations package\InviskaMKVExtract.exe
+
+      - name: Install WiX Toolset
+        shell: pwsh
+        run: choco install wixtoolset --no-progress -y
+
+      - name: Build MSI
+        shell: pwsh
+        run: |
+          $sourceDir = (Resolve-Path package).Path
+          $out = "release\${env:APP_NAME}_Windows_${{ matrix.label }}_${env:VERSION}.msi"
+          $wixBin = (Get-Command heat.exe).Source | Split-Path
+          & "$wixBin\heat.exe" dir "$sourceDir" -gg -sfrag -srd -cg AppFiles -dr INSTALLFOLDER -var var.SourceDir -out files.wxs
+          @'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+            <Product Id="*" Name="Inviska Extract Neo" Language="1033" Version="$(var.Version)" Manufacturer="whatev-indus" UpgradeCode="8B8D1589-83E1-4F5A-A7EE-0913616415D9">
+              <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
+              <MajorUpgrade DowngradeErrorMessage="A newer version of Inviska Extract Neo is already installed." />
+              <MediaTemplate EmbedCab="yes" />
+              <Directory Id="TARGETDIR" Name="SourceDir">
+                <Directory Id="ProgramFilesFolder">
+                  <Directory Id="INSTALLFOLDER" Name="Inviska Extract Neo" />
+                </Directory>
+              </Directory>
+              <Feature Id="MainFeature" Title="Inviska Extract Neo" Level="1">
+                <ComponentGroupRef Id="AppFiles" />
+              </Feature>
+            </Product>
+          </Wix>
+          '@ | Set-Content product.wxs
+          & "$wixBin\candle.exe" -dSourceDir="$sourceDir" -dVersion="$env:VERSION" product.wxs files.wxs
+          & "$wixBin\light.exe" -ext WixUIExtension -out "$out" product.wixobj files.wixobj
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Inviska Extract Neo_Windows_${{ matrix.label }}_${{ steps.version.outputs.version }}
+          path: release/Inviska Extract Neo_Windows_${{ matrix.label }}_${{ steps.version.outputs.version }}.msi
+          if-no-files-found: error

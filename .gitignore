@@ -1,0 +1,11 @@
+.DS_Store
+.qmake.stash
+Makefile
+debug/
+release/
+*.o
+*.app/
+*.dSYM/
+target/
+node_modules/
+dist/
