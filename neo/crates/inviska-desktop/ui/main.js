@@ -43,7 +43,7 @@ const els = {
   },
 };
 
-initializeSettings();
+loadSettings();
 
 listen("extraction-event", (event) => {
   const payload = event.payload;
@@ -541,15 +541,11 @@ function emptyToNull(value) {
   return trimmed.length ? trimmed : null;
 }
 
-async function initializeSettings() {
+function loadSettings() {
   try {
     const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
     els.toolDir.value = settings.toolDir || "";
     els.outputDir.value = settings.outputDir || "";
-    if (!els.outputDir.value) {
-      const defaultOutputDirectory = await invoke("default_output_directory");
-      els.outputDir.value = defaultOutputDirectory || "";
-    }
   } catch {
     localStorage.removeItem(SETTINGS_KEY);
   }

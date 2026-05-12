@@ -9,7 +9,6 @@ authors.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-dirs = "6"
 inviska-core.workspace = true
 rfd = "0.15"
 serde.workspace = true

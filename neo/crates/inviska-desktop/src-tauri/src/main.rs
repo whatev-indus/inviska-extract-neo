@@ -41,11 +41,10 @@ fn probe_file(request: ProbeRequest) -> Result<MediaFile, InviskaError> {
 
 #[tauri::command]
 fn plan_extraction(request: PlanRequest) -> ExtractionPlan {
-    let output_directory = request.output_directory.or_else(default_output_directory);
     build_extraction_plan(
         &request.tools,
         &request.media,
-        output_directory.as_deref(),
+        request.output_directory.as_deref(),
         &request.selection,
     )
 }
@@ -71,16 +70,7 @@ fn pick_mkv_files() -> Vec<PathBuf> {
 
 #[tauri::command]
 fn pick_folder() -> Option<PathBuf> {
-    let dialog = match default_output_directory() {
-        Some(directory) => rfd::FileDialog::new().set_directory(directory),
-        None => rfd::FileDialog::new(),
-    };
-    dialog.pick_folder()
-}
-
-#[tauri::command]
-fn default_output_directory() -> Option<PathBuf> {
-    dirs::download_dir().or_else(|| dirs::home_dir().map(|home| home.join("Downloads")))
+    rfd::FileDialog::new().pick_folder()
 }
 
 fn main() {
@@ -91,8 +81,7 @@ fn main() {
             plan_extraction,
             run_extraction,
             pick_mkv_files,
-            pick_folder,
-            default_output_directory
+            pick_folder
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Inviska Extract Neo");
