@@ -1782,6 +1782,7 @@ dependencies = [
 name = "inviska-desktop"
 version = "2.0.0"
 dependencies = [
+ "dirs",
  "inviska-core",
  "rfd",
  "serde",
