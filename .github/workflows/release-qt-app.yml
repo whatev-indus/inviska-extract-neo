@@ -1,0 +1,43 @@
+name: Release Qt app
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  macos-arm:
+    name: macOS ARM
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Qt
+        run: brew install qt
+
+      - name: Build
+        run: |
+          qmake CONFIG+=BuildRelease
+          make -j$(sysctl -n hw.logicalcpu)
+
+      - name: Package
+        run: |
+          ditto -c -k --keepParent \
+            "release/Inviska Extract Neo.app" \
+            "Inviska Extract Neo_macOS_ARM_${{ steps.version.outputs.VERSION }}.zip"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "Inviska Extract Neo ${{ github.ref_name }}" \
+            --generate-notes \
+            "Inviska Extract Neo_macOS_ARM_${{ steps.version.outputs.VERSION }}.zip"
