@@ -62,6 +62,7 @@ jobs:
           VERSION: ${{ needs.create-release.outputs.version }}
         run: |
           APP="Inviska Extract Neo"
+          macdeployqt "release/${APP}.app"
           ditto -c -k --keepParent "release/${APP}.app" "${APP}_macOS_ARM_${VERSION}.zip"
           gh release upload "${{ github.ref_name }}" "${APP}_macOS_ARM_${VERSION}.zip"
 
