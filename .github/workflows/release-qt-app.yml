@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g. v1.1.0)'
+        required: true
 
 permissions:
   contents: write
@@ -13,33 +18,46 @@ jobs:
     name: Create release
     runs-on: ubuntu-24.04
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get version
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Resolve tag and version
+        id: resolve
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Create source archives
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.resolve.outputs.version }}
         run: |
           APP="Inviska Extract Neo"
           git archive --format=zip  --prefix="${APP}_${VERSION}/" HEAD -o "${APP}_Source_${VERSION}.zip"
           git archive --format=tar.gz --prefix="${APP}_${VERSION}/" HEAD -o "${APP}_Source_${VERSION}.tar.gz"
 
-      - name: Create release
+      - name: Create release (skip if already exists)
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.resolve.outputs.tag }}
+          VERSION: ${{ steps.resolve.outputs.version }}
         run: |
           APP="Inviska Extract Neo"
-          gh release create "${{ github.ref_name }}" \
-            --title "Inviska Extract Neo ${{ github.ref_name }}" \
-            --generate-notes \
-            "${APP}_Source_${VERSION}.zip" \
-            "${APP}_Source_${VERSION}.tar.gz"
+          if gh release view "${TAG}" &>/dev/null; then
+            echo "Release ${TAG} already exists — uploading source archives only"
+            gh release upload "${TAG}" \
+              "${APP}_Source_${VERSION}.zip" \
+              "${APP}_Source_${VERSION}.tar.gz" \
+              --clobber
+          else
+            gh release create "${TAG}" \
+              --title "Inviska Extract Neo ${TAG}" \
+              --generate-notes \
+              "${APP}_Source_${VERSION}.zip" \
+              "${APP}_Source_${VERSION}.tar.gz"
+          fi
 
   macos-arm:
     name: macOS ARM
@@ -59,12 +77,13 @@ jobs:
       - name: Package and upload
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.create-release.outputs.tag }}
           VERSION: ${{ needs.create-release.outputs.version }}
         run: |
           APP="Inviska Extract Neo"
           macdeployqt "release/${APP}.app"
           ditto -c -k --keepParent "release/${APP}.app" "${APP}_macOS_ARM_${VERSION}.zip"
-          gh release upload "${{ github.ref_name }}" "${APP}_macOS_ARM_${VERSION}.zip"
+          gh release upload "${TAG}" "${APP}_macOS_ARM_${VERSION}.zip" --clobber
 
   linux:
     name: Linux ${{ matrix.label }} AppImage
@@ -134,11 +153,12 @@ jobs:
       - name: Upload artifact
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.create-release.outputs.tag }}
           VERSION: ${{ needs.create-release.outputs.version }}
           LABEL: ${{ matrix.label }}
         run: |
           APP="Inviska Extract Neo"
-          gh release upload "${{ github.ref_name }}" "${APP}_Linux_${LABEL}_${VERSION}.AppImage"
+          gh release upload "${TAG}" "${APP}_Linux_${LABEL}_${VERSION}.AppImage" --clobber
 
   windows-x64:
     name: Windows x64
@@ -174,10 +194,11 @@ jobs:
       - name: Package and upload
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.create-release.outputs.tag }}
           VERSION: ${{ needs.create-release.outputs.version }}
         shell: pwsh
         run: |
           $APP = "Inviska Extract Neo"
           $ZIP = "${APP}_Windows_x64_${env:VERSION}.zip"
           Compress-Archive -Path deploy\* -DestinationPath $ZIP
-          gh release upload "${{ github.ref_name }}" $ZIP
+          gh release upload "${{ needs.create-release.outputs.tag }}" $ZIP --clobber
