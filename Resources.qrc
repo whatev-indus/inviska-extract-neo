@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
 		<file>Resources/Icon.png</file>
+        <file>Resources/Settings.png</file>
         <file>Resources/BranchClosed.svg</file>
         <file>Resources/BranchOpen.svg</file>
         <file>Resources/BranchClosedLight.svg</file>

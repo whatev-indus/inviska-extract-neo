@@ -9,10 +9,10 @@ IComSysMKVToolNixVer::IComSysMKVToolNixVer(IUIMainWindow* pmwMainWindow, IComSys
     m_pmwMainWindow     = pmwMainWindow;
     m_pimkvMKVToolNix   = pimkvMKVToolNix;
 
-    connect(&m_qprocMKVMerge, SIGNAL(readyReadStandardOutput()),             this, SLOT(MKVMergeOutputText()));
-    connect(&m_qprocMKVMerge, SIGNAL(readyReadStandardError()),              this, SLOT(MKVMergeErrorText()));
-    connect(&m_qprocMKVMerge, SIGNAL(finished(int, QProcess::ExitStatus)),   this, SLOT(MKVMergeFinished(int, QProcess::ExitStatus)));
-    connect(&m_qprocMKVMerge, SIGNAL(errorOccurred(QProcess::ProcessError)), this, SLOT(MKVMergeError(QProcess::ProcessError)));
+    connect(&m_qprocMKVMerge, &QProcess::readyReadStandardOutput,  this, &IComSysMKVToolNixVer::MKVMergeOutputText);
+    connect(&m_qprocMKVMerge, &QProcess::readyReadStandardError,   this, &IComSysMKVToolNixVer::MKVMergeErrorText);
+    connect(&m_qprocMKVMerge, &QProcess::finished,                 this, &IComSysMKVToolNixVer::MKVMergeFinished);
+    connect(&m_qprocMKVMerge, &QProcess::errorOccurred,            this, &IComSysMKVToolNixVer::MKVMergeError);
 }
 
 

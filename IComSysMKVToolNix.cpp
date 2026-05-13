@@ -23,7 +23,7 @@ IComSysMKVToolNix::IComSysMKVToolNix(IUIMainWindow* pmwMainWindow) : QObject(pmw
     m_qstrMKVExtract = "mkvextract";
     #endif
 
-    QTimer::singleShot(0, this, SLOT(LocateMKVToolNix()));
+    QTimer::singleShot(0, this, &IComSysMKVToolNix::LocateMKVToolNix);
 }
 
 

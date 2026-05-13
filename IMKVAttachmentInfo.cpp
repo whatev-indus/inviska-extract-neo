@@ -17,7 +17,7 @@ void IMKVAttachmentInfo::Reset()
 }
 
 
-void IMKVAttachmentInfo::GenerateAttatchmentDescription(IMKVFileInfo & rfinfoFileInfo, QString & rqstrDescription)
+void IMKVAttachmentInfo::GenerateAttachmentDescription(IMKVFileInfo & rfinfoFileInfo, QString & rqstrDescription)
 {
     rfinfoFileInfo.UpdateTrackCounts(IUIExtract::Attachment);
 

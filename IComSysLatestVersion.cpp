@@ -30,8 +30,8 @@ void IComSysLatestVersion::CheckForNewVersion()
     {
         m_pqnamNetworkMan = new QNetworkAccessManager(m_pmwMainWindow);
         m_pqnrReply = m_pqnamNetworkMan->get(QNetworkRequest(QUrl("http://www.inviska.com/versioninfo/LatestVersion")));
-        connect(m_pqnrReply, SIGNAL(finished()),                         this, SLOT(Finished()));
-        connect(m_pqnrReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(Error(QNetworkReply::NetworkError)));
+        connect(m_pqnrReply, &QNetworkReply::finished,       this, &IComSysLatestVersion::Finished);
+        connect(m_pqnrReply, &QNetworkReply::errorOccurred,  this, &IComSysLatestVersion::Error);
     }
 }
 
@@ -229,7 +229,7 @@ void IComSysLatestVersion::DisplayVersionUpdate()
 
         QDialogButtonBox* pqdbbOK = new QDialogButtonBox(QDialogButtonBox::Ok);
         pqdbbOK->setOrientation(Qt::Horizontal);
-        connect(pqdbbOK, SIGNAL(accepted()), pqdlgNewVersion, SLOT(accept()));
+        connect(pqdbbOK, &QDialogButtonBox::accepted, pqdlgNewVersion, &QDialog::accept);
 
         QVBoxLayout* pqvblLayout = new QVBoxLayout;
         pqvblLayout->addWidget(pqlblMessage);

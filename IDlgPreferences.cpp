@@ -56,7 +56,7 @@ IDlgPreferences::IDlgPreferences(IUIMainWindow* pmwMainWindow, const int kiStart
     m_pqswPageStack->setCurrentIndex(m_iStartPage);
 
     m_pqpbMKVToolNixLocate->setIcon(m_pmwMainWindow->style()->standardIcon(QStyle::SP_DirOpenIcon));
-    connect(m_pqpbMKVToolNixLocate, SIGNAL(clicked()), this, SLOT(SetMKVToolNixPath()));
+    connect(m_pqpbMKVToolNixLocate, &QPushButton::clicked, this, &IDlgPreferences::SetMKVToolNixPath);
 
     resize(sizeHint());
     show();

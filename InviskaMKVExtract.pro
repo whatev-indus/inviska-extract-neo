@@ -1,10 +1,10 @@
 QT += core gui widgets network
 TEMPLATE = app
 
-VERSION = 2.0.0
-DISPLAY_VERSION = v2.0.0
+VERSION = 1.1.0
+DISPLAY_VERSION = v1.1.0
 NAME = "Inviska Extract Neo"
-NAME_NO_SPACES = "InviskaMKVExtract"
+NAME_NO_SPACES = "InviskaExtractNeo"
 
 HEADERS += \
     IComSysAbsoluteDay.h \
@@ -83,7 +83,7 @@ win32 {
 
 
 macx {
-    TARGET = $$NAME_NO_SPACES
+    TARGET = $$NAME
     ICON = ./Resources/Icon.icns
     QMAKE_INFO_PLIST = ./Resources/Info.plist
     QMAKE_CFLAGS_RELEASE *= -fvisibility=hidden

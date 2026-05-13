@@ -1,11 +1,28 @@
 #include <QtWidgets>
 #include <QDirIterator>
+#include <QPainter>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 #include "IUIExtract.h"
 #include "IUIMainWindow.h"
 #include "IDlgExtractProgress.h"
 #include "IMKVExtractProcess.h"
 #include "IComSysMKVToolNix.h"
 #include "IComUtilityFuncs.h"
+
+
+IFileListTree::IFileListTree(QWidget* parent) : QTreeWidget(parent) {}
+
+void IFileListTree::paintEvent(QPaintEvent* event)
+{
+    QTreeWidget::paintEvent(event);
+    if (invisibleRootItem()->childCount() == 0)
+    {
+        QPainter painter(viewport());
+        painter.setPen(m_colPlaceholder);
+        painter.drawText(viewport()->rect(), Qt::AlignCenter, tr("Drag and drop MKV file(s)."));
+    }
+}
 
 
 IUIExtract::IUIExtract(IUIMainWindow* pmwMainWindow) : QWidget(pmwMainWindow)
@@ -16,20 +33,22 @@ IUIExtract::IUIExtract(IUIMainWindow* pmwMainWindow) : QWidget(pmwMainWindow)
     m_bFileBeingProcessed = false;
     m_bAttachmentsGroupModified = false;
     m_bDetectCuesheetsTags = m_pmwMainWindow->GetSettings().value("MKVToolNix/DetectCuesheetsTags", false).toBool();
-    m_pkepMKVExtractor = nullptr;
     setAcceptDrops(true);
     setAutoFillBackground(true);
     setAttribute(Qt::WA_StyledBackground, true);
     m_qcolCollator.setNumericMode(true);
 
-    QLabel *pqlblFileList, *pqlblBatchExtract, *pqlblOutputDir;
-    QGroupBox* pqgbExtractForSelectedTracks;
+    QLabel *pqlblFileList, *pqlblBatchExtract, *pqlblOutputDir, *pqlblForSelectedTracks;
+    QWidget* pqwdgForSelectedTracks;
     pqlblFileList = new QLabel(tr("Files List"));
-    m_pqtwFileTree = new QTreeWidget(this);
+    m_pqtwFileTree = new IFileListTree(this);
     pqlblBatchExtract = new QLabel(tr("Batch Extract"));
     m_pqlwBatchExtractList = new QListWidget(this);
     m_pqcbExtractTimestamps = new QCheckBox(tr("Extract timestamps"), this);
-    pqgbExtractForSelectedTracks = new QGroupBox("For selected tracks:", this);
+    pqlblForSelectedTracks = new QLabel(tr("For selected tracks:"), this);
+    pqwdgForSelectedTracks = new QWidget(this);
+    pqwdgForSelectedTracks->setObjectName("selectedTracksBox");
+    pqwdgForSelectedTracks->setAttribute(Qt::WA_StyledBackground, true);
     m_pqcbExtractCues = new QCheckBox(tr("Extract cues"), this);
     pqlblOutputDir = new QLabel(tr("Output Directory:"));
     m_pqleOutputDir = new QLineEdit(this);
@@ -52,7 +71,7 @@ IUIExtract::IUIExtract(IUIMainWindow* pmwMainWindow) : QWidget(pmwMainWindow)
     m_pqpbOutputDirSelect->setFixedSize(30, 30);
     SetTheme(m_pmwMainWindow->GetSettings().contains("Appearance/Theme") ? m_pmwMainWindow->GetSettings().value("Appearance/Theme").toString() : SystemThemeName());
     #ifdef Q_OS_WIN
-    m_pqleOutputDir->setValidator(new QRegExpValidator(QRegExp("^[^/*?<>|]*$"), this));
+    m_pqleOutputDir->setValidator(new QRegularExpressionValidator(QRegularExpression("^[^/*?<>|]*$"), this));
     #endif
 
     QHBoxLayout* pqhblOutputDirLayout = new QHBoxLayout;
@@ -65,15 +84,16 @@ IUIExtract::IUIExtract(IUIMainWindow* pmwMainWindow) : QWidget(pmwMainWindow)
     pqvblLeftLayout->addWidget(m_pqtwFileTree);
     pqvblLeftLayout->addLayout(pqhblOutputDirLayout);
 
-    QVBoxLayout* pqvblExtractForSelectedTracks = new QVBoxLayout;
+    QVBoxLayout* pqvblExtractForSelectedTracks = new QVBoxLayout(pqwdgForSelectedTracks);
+    pqvblExtractForSelectedTracks->setContentsMargins(8, 6, 8, 6);
     pqvblExtractForSelectedTracks->addWidget(m_pqcbExtractTimestamps);
     pqvblExtractForSelectedTracks->addWidget(m_pqcbExtractCues);
-    pqgbExtractForSelectedTracks->setLayout(pqvblExtractForSelectedTracks);
 
     QVBoxLayout* pqvblRightLayout = new QVBoxLayout;
     pqvblRightLayout->addWidget(pqlblBatchExtract);
     pqvblRightLayout->addWidget(m_pqlwBatchExtractList);
-    pqvblRightLayout->addWidget(pqgbExtractForSelectedTracks);
+    pqvblRightLayout->addWidget(pqlblForSelectedTracks);
+    pqvblRightLayout->addWidget(pqwdgForSelectedTracks);
     pqvblRightLayout->addStretch();
     pqvblRightLayout->addWidget(m_pqpbClearList);
     pqvblRightLayout->addWidget(m_pqpbBegin);
@@ -86,17 +106,17 @@ IUIExtract::IUIExtract(IUIMainWindow* pmwMainWindow) : QWidget(pmwMainWindow)
 
     setLayout(pqhblMainLayout);
 
-    connect(&m_qprocMKVToolNix,     SIGNAL(readyReadStandardOutput()),             this, SLOT(MKVToolNixOutputText()));
-    connect(&m_qprocMKVToolNix,     SIGNAL(readyReadStandardError()),              this, SLOT(MKVToolNixErrorText()));
-    connect(&m_qprocMKVToolNix,     SIGNAL(finished(int, QProcess::ExitStatus)),   this, SLOT(MKVToolNixFinished(int, QProcess::ExitStatus)));
-    connect(&m_qprocMKVToolNix,     SIGNAL(errorOccurred(QProcess::ProcessError)), this, SLOT(MKVToolNixError(QProcess::ProcessError)));
+    connect(&m_qprocMKVToolNix,     &QProcess::readyReadStandardOutput,  this, &IUIExtract::MKVToolNixOutputText);
+    connect(&m_qprocMKVToolNix,     &QProcess::readyReadStandardError,   this, &IUIExtract::MKVToolNixErrorText);
+    connect(&m_qprocMKVToolNix,     &QProcess::finished,                 this, &IUIExtract::MKVToolNixFinished);
+    connect(&m_qprocMKVToolNix,     &QProcess::errorOccurred,            this, &IUIExtract::MKVToolNixError);
 
-    connect(m_pqtwFileTree,         SIGNAL(itemChanged(QTreeWidgetItem*, int)),    this, SLOT(FileTreeItemToggled(QTreeWidgetItem*)));
-    connect(m_pqlwBatchExtractList, SIGNAL(itemChanged(QListWidgetItem*)),         this, SLOT(SetBeginEnableState()));
+    connect(m_pqtwFileTree,         &QTreeWidget::itemChanged,           this, [this](QTreeWidgetItem* item, int) { FileTreeItemToggled(item); });
+    connect(m_pqlwBatchExtractList, &QListWidget::itemChanged,           this, [this](QListWidgetItem*) { SetBeginEnableState(); });
 
-    connect(m_pqpbOutputDirSelect,  SIGNAL(clicked()),                             this, SLOT(SelectOutputDirectory()));
-    connect(m_pqpbClearList,        SIGNAL(clicked()),                             this, SLOT(ClearList()));
-    connect(m_pqpbBegin,            SIGNAL(clicked()),                             this, SLOT(BeginExtraction()));
+    connect(m_pqpbOutputDirSelect,  &QPushButton::clicked,               this, &IUIExtract::SelectOutputDirectory);
+    connect(m_pqpbClearList,        &QPushButton::clicked,               this, &IUIExtract::ClearList);
+    connect(m_pqpbBegin,            &QPushButton::clicked,               this, &IUIExtract::BeginExtraction);
 
     #ifdef Q_OS_MACOS
     m_qprocMKVToolNix.setEnvironment(QStringList("LANG=en_US.UTF-8"));
@@ -140,6 +160,7 @@ void IUIExtract::ApplyTheme(const QString & krqstrThemeName)
     QString qstrBeginDisabled;
     QString qstrBeginDisabledText;
     QString qstrBeginEnabled;
+    QString qstrBeginEnabledHover;
     QString qstrAccent;
     QString qstrSelection;
     QString qstrSelectionText;
@@ -161,7 +182,8 @@ void IUIExtract::ApplyTheme(const QString & krqstrThemeName)
         qstrButtonDisabledText = "#98a2b3";
         qstrBeginDisabled = "#dde3ec";
         qstrBeginDisabledText = "#667085";
-        qstrBeginEnabled = qstrButton;
+        qstrBeginEnabled = "#067DFF";
+        qstrBeginEnabledHover = "#1a8aff";
         qstrAccent = "#2563eb";
         qstrSelection = "#2563eb";
         qstrSelectionText = "#ffffff";
@@ -175,16 +197,17 @@ void IUIExtract::ApplyTheme(const QString & krqstrThemeName)
         qstrField = "#1d1d1d";
         qstrText = "#eeeeee";
         qstrMuted = "#8f8f8f";
-        qstrBorder = "#4a4a4a";
+        qstrBorder = "#6a6a6a";
         qstrButton = "#555555";
-        qstrButtonHover = "#606060";
-        qstrButtonDisabled = "#4d4d4d";
-        qstrButtonDisabledText = "#8f8f8f";
-        qstrBeginDisabled = "#3f3f3f";
-        qstrBeginDisabledText = "#c8c8c8";
-        qstrBeginEnabled = qstrButton;
-        qstrAccent = "#555555";
-        qstrSelection = "#555555";
+        qstrButtonHover = "#666666";
+        qstrButtonDisabled = "#444444";
+        qstrButtonDisabledText = "#777777";
+        qstrBeginDisabled = "#3a3a3a";
+        qstrBeginDisabledText = "#aaaaaa";
+        qstrBeginEnabled = "#067DFF";
+        qstrBeginEnabledHover = "#1a8aff";
+        qstrAccent = "#1a6b9e";
+        qstrSelection = "#1a6b9e";
         qstrSelectionText = "#ffffff";
         qstrBranchClosed = ":/Resources/BranchClosedLight.svg";
         qstrBranchOpen = ":/Resources/BranchOpenLight.svg";
@@ -203,7 +226,8 @@ void IUIExtract::ApplyTheme(const QString & krqstrThemeName)
         qstrButtonDisabledText = "#7b82a8";
         qstrBeginDisabled = "#252932";
         qstrBeginDisabledText = "#c6ccdc";
-        qstrBeginEnabled = "#4caf7d";
+        qstrBeginEnabled = "#067DFF";
+        qstrBeginEnabledHover = "#1a8aff";
         qstrAccent = "#4caf7d";
         qstrSelection = "#5b8af5";
         qstrSelectionText = "#ffffff";
@@ -230,10 +254,12 @@ void IUIExtract::ApplyTheme(const QString & krqstrThemeName)
         "  border-color: %13;"
         "}"
         "IUIExtract QTreeWidget::branch:closed:has-children {"
-        "  image: url(%17);"
+        "  image: url(%15);"
+        "  width: 16px;"
         "}"
         "IUIExtract QTreeWidget::branch:open:has-children {"
-        "  image: url(%18);"
+        "  image: url(%14);"
+        "  width: 16px;"
         "}"
         "IUIExtract QComboBox {"
         "  background-color: %3;"
@@ -249,7 +275,7 @@ void IUIExtract::ApplyTheme(const QString & krqstrThemeName)
         "  border-left: 1px solid %6;"
         "}"
         "IUIExtract QComboBox::down-arrow {"
-        "  image: url(%17);"
+        "  image: url(%14);"
         "  width: 12px;"
         "  height: 12px;"
         "}"
@@ -259,53 +285,39 @@ void IUIExtract::ApplyTheme(const QString & krqstrThemeName)
         "IUIExtract QPushButton {"
         "  background-color: %7;"
         "  color: %11;"
-        "  border: 1px solid %7;"
+        "  border: 1px solid %6;"
         "  padding: 2px 8px;"
         "}"
         "IUIExtract QPushButton:hover {"
         "  background-color: %8;"
         "  border-color: %8;"
         "}"
-        "IUIExtract QPushButton#beginButton:enabled {"
-        "  background-color: %16;"
-        "  color: %11;"
-        "  border-color: %16;"
-        "}"
-        "IUIExtract QPushButton#beginButton:enabled:hover {"
-        "  background-color: %16;"
-        "  border-color: %16;"
-        "}"
         "IUIExtract QPushButton:disabled {"
         "  background-color: %9;"
         "  color: %12;"
         "  border-color: %9;"
         "}"
-        "IUIExtract QPushButton#beginButton:disabled {"
-        "  background-color: %14;"
-        "  color: %15;"
-        "  border-color: %14;"
-        "}"
         "IUIExtract QPushButton:flat {"
         "  background-color: transparent;"
         "  border: none;"
         "}"
-        "IUIExtract QGroupBox {"
+        "IUIExtract QWidget#selectedTracksBox {"
         "  background-color: %2;"
         "  border: 1px solid %6;"
         "  border-radius: 3px;"
-        "  margin-top: 8px;"
-        "  padding: 8px 8px 6px 8px;"
-        "}"
-        "IUIExtract QGroupBox::title {"
-        "  subcontrol-origin: margin;"
-        "  left: 0px;"
-        "  padding: 0px 4px 0px 0px;"
         "}"
     ).arg(qstrWindow, qstrPanel, qstrField, qstrText, qstrMuted, qstrBorder,
           qstrButton, qstrButtonHover, qstrButtonDisabled, qstrSelection,
           qstrSelectionText, qstrButtonDisabledText, qstrAccent,
-          qstrBeginDisabled, qstrBeginDisabledText, qstrBeginEnabled,
           qstrBranchClosed, qstrBranchOpen));
+
+    m_pqpbBegin->setStyleSheet(
+        QString("QPushButton:enabled { background-color: %1; color: #ffffff; border: 1px solid %1; padding: 2px 8px; }"
+                "QPushButton:enabled:hover { background-color: %2; border-color: %2; }"
+                "QPushButton:disabled { background-color: %3; color: %4; border: 1px solid %3; padding: 2px 8px; }")
+        .arg(qstrBeginEnabled, qstrBeginEnabledHover, qstrBeginDisabled, qstrBeginDisabledText));
+
+    m_pqtwFileTree->setPlaceholderColor(QColor(qstrMuted));
 }
 
 
@@ -511,7 +523,10 @@ void IUIExtract::ProcessNextFileInQueue()
     m_pqtwiFileItem = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList(qstrFileName), File);
     m_pqtwiFileItem->setData(0, FilePathRoll, QDir::toNativeSeparators(qstrFilePath));
     ptwiRootItem->insertChild(iIndex, m_pqtwiFileItem);
-    m_pqtwiAttatchmentsGroup = nullptr;
+    QTreeWidgetItem* ptwiLoading = new QTreeWidgetItem(QStringList(tr("Loading…")), Invalid);
+    ptwiLoading->setFlags(Qt::NoItemFlags);
+    m_pqtwiFileItem->addChild(ptwiLoading);
+    m_pqtwiAttachmentsGroup = nullptr;
     m_pqpbClearList->setEnabled(true);
 
     m_iActiveProcess = MKVMerge;
@@ -552,10 +567,10 @@ void IUIExtract::ProcessMKVMergeOutput()
     else
         ProcessMKVMergeOutputVerbose();
 
-    if (m_pqtwiAttatchmentsGroup != nullptr)
+    if (m_pqtwiAttachmentsGroup != nullptr)
     {
-        m_pqtwiAttatchmentsGroup->setText(0, tr("Attachments (%1)").arg(m_finfCurrentFileInfo.GetTrackCountForType(Attachment)));
-        m_pqtwiAttatchmentsGroup->sortChildren(0, Qt::AscendingOrder);
+        m_pqtwiAttachmentsGroup->setText(0, tr("Attachments (%1)").arg(m_finfCurrentFileInfo.GetTrackCountForType(Attachment)));
+        m_pqtwiAttachmentsGroup->sortChildren(0, Qt::AscendingOrder);
     }
 
     m_qbaMKVMergeOutput.clear();
@@ -715,19 +730,19 @@ void IUIExtract::AddTrackToTree()
 
 void IUIExtract::AddAttachmentToTree()
 {
-    if (m_pqtwiAttatchmentsGroup == nullptr)
+    if (m_pqtwiAttachmentsGroup == nullptr)
     {
-        m_pqtwiAttatchmentsGroup = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList(tr("Attachments")), AttachmentsGroup);
-        AddItemToTree(m_pqtwiAttatchmentsGroup);
+        m_pqtwiAttachmentsGroup = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList(tr("Attachments")), AttachmentsGroup);
+        AddItemToTree(m_pqtwiAttachmentsGroup);
     }
 
     QString qstrDescription;
-    m_ainfAttachmentInfo.GenerateAttatchmentDescription(m_finfCurrentFileInfo, qstrDescription);
+    m_ainfAttachmentInfo.GenerateAttachmentDescription(m_finfCurrentFileInfo, qstrDescription);
 
     QTreeWidgetItem* pqtwiAttechmentItem = new QTreeWidgetItem(static_cast<QTreeWidget*>(nullptr), QStringList(qstrDescription), Attachment);
     pqtwiAttechmentItem->setData(0, TrackIDRole, m_ainfAttachmentInfo.GetAttachmentID());
     pqtwiAttechmentItem->setCheckState(0, Qt::Unchecked);
-    m_pqtwiAttatchmentsGroup->addChild(pqtwiAttechmentItem);
+    m_pqtwiAttachmentsGroup->addChild(pqtwiAttechmentItem);
 
     m_ainfAttachmentInfo.Reset();
 }
@@ -790,6 +805,10 @@ void IUIExtract::MKVToolNixErrorText()
 
 void IUIExtract::MKVToolNixFinished(const int kiExitCode, const QProcess::ExitStatus kqpesExitStatus)
 {
+    if (m_iActiveProcess == MKVMerge && m_pqtwiFileItem->childCount() > 0
+            && m_pqtwiFileItem->child(0)->type() == Invalid)
+        delete m_pqtwiFileItem->takeChild(0);
+
     bool bProccessNextFile = false;
     if (kqpesExitStatus == QProcess::CrashExit)
     {
@@ -999,10 +1018,9 @@ void IUIExtract::BeginExtraction()
 
 void IUIExtract::FileComplete(QTreeWidgetItem* ptwiCompleteItem)
 {
-    disconnect(m_pkepMKVExtractor, SIGNAL(ExtractionComplete(QTreeWidgetItem*)), this, SLOT(FileComplete(QTreeWidgetItem*)));
-    delete m_pkepMKVExtractor;
+    disconnect(m_pkepMKVExtractor.get(), &IMKVExtractProcess::ExtractionComplete, this, &IUIExtract::FileComplete);
+    m_pkepMKVExtractor.reset();
     delete ptwiCompleteItem;
-    m_pkepMKVExtractor = nullptr;
 
     m_pdepExtractionProgress->IncrementFilesProcessed();
     ExtractNextFileInTree();
@@ -1020,8 +1038,8 @@ void IUIExtract::ExtractNextFileInTree()
     }
 
     m_pdepExtractionProgress->SetFileBeingProcessed(ptwiRootItem->child(0)->text(0));
-    m_pkepMKVExtractor = new IMKVExtractProcess(this, ptwiRootItem->child(0));
-    connect(m_pkepMKVExtractor, SIGNAL(ExtractionComplete(QTreeWidgetItem*)), this, SLOT(FileComplete(QTreeWidgetItem*)));
+    m_pkepMKVExtractor = std::make_unique<IMKVExtractProcess>(this, ptwiRootItem->child(0));
+    connect(m_pkepMKVExtractor.get(), &IMKVExtractProcess::ExtractionComplete, this, &IUIExtract::FileComplete);
     m_pkepMKVExtractor->BeginExtract();
 }
 
@@ -1044,8 +1062,7 @@ void IUIExtract::AbortCurrentExtraction()
     if (m_pkepMKVExtractor != nullptr)
     {
         m_pkepMKVExtractor->AbortExtraction();
-        delete m_pkepMKVExtractor;
-        m_pkepMKVExtractor = nullptr;
+        m_pkepMKVExtractor.reset();
         ClearList();
     }
 }

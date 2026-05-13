@@ -20,7 +20,7 @@ private:
     bool                        m_bHasTags;
 
     // Number of attachment files
-    int                         m_iAttatchmentCount;
+    int                         m_iAttachmentCount;
 
 public:
     IMKVFileInfo();

@@ -1,16 +1,17 @@
 #ifndef IUIExtract_h
 #define IUIExtract_h
 
+#include <memory>
 #include <QWidget>
 #include <QProcess>
 #include <QDir>
 #include <QCollator>
 #include <QCoreApplication>
+#include <QTreeWidget>
 #include "IMKVTrackInfo.h"
 #include "IMKVChaptCueshtTagInfo.h"
 #include "IMKVAttachmentInfo.h"
 #include "IMKVFileInfo.h"
-class QTreeWidget;
 class QTreeWidgetItem;
 class QListWidget;
 class QPushButton;
@@ -18,8 +19,20 @@ class QCheckBox;
 class QLineEdit;
 class IUIMainWindow;
 class IComSysMKVToolNix;
-class IMKVExtractProcess;
+#include "IMKVExtractProcess.h"
 class IDlgExtractProgress;
+
+
+class IFileListTree : public QTreeWidget
+{
+    Q_DECLARE_TR_FUNCTIONS(IFileListTree)
+    QColor m_colPlaceholder;
+public:
+    explicit IFileListTree(QWidget* parent = nullptr);
+    void setPlaceholderColor(const QColor & color) { m_colPlaceholder = color; }
+protected:
+    void paintEvent(QPaintEvent* event) override;
+};
 
 
 class IUIExtract : public QWidget
@@ -43,7 +56,7 @@ private:
     QString                     m_qstrThemeName;
 
     // Tree widget for displaying files and tracks contained in the files
-    QTreeWidget*                m_pqtwFileTree;
+    IFileListTree*              m_pqtwFileTree;
 
     // List of check boxes to extract all instances of that track from the added files
     QListWidget*                m_pqlwBatchExtractList;
@@ -95,7 +108,7 @@ private:
     QTreeWidgetItem*            m_pqtwiFileItem;
 
     // Tree widget item for attachments that is added in the file item
-    QTreeWidgetItem*            m_pqtwiAttatchmentsGroup;
+    QTreeWidgetItem*            m_pqtwiAttachmentsGroup;
 
     // Indicates which is the current active process, MKVMerge - reading track/chapter/attachment info, MKVExtract - reading cuesheet, or MKVExtract - reading tags
     int                         m_iActiveProcess;
@@ -124,7 +137,7 @@ private:
     ///////////////////////////////////////////////////////////////////////////////////////////
 
     // Pointer to active MKV extract object
-    IMKVExtractProcess*         m_pkepMKVExtractor;
+    std::unique_ptr<IMKVExtractProcess> m_pkepMKVExtractor;
 
 public:
     // Constants for element type.  These values are also used for the BatchRoll value, where video 1 would be 201, video 2 would be 202 etc.
@@ -150,7 +163,7 @@ protected:
     void dragEnterEvent(QDragEnterEvent* pqdragEvent);
     void dropEvent(QDropEvent* pqdropEvent);
 
-private slots:
+public slots:
     // Shows open file dialog for adding files to the tree
     void OpenFilesDialog();
     void OpenDirDialog();

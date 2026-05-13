@@ -25,7 +25,7 @@ IComUIMainWinBase::IComUIMainWinBase(QSettings & rqsetSettings, IComSysSingleIns
     m_qtimOtherInstanceCheck.setParent(this);
     if (m_rqsetSettings.value("Application/SingleInstanceOnly", false).toBool())
     {
-        connect(&m_qtimOtherInstanceCheck, SIGNAL(timeout()), this, SLOT(CheckForOtherInstances()));
+        connect(&m_qtimOtherInstanceCheck, &QTimer::timeout, this, &IComUIMainWinBase::CheckForOtherInstances);
         m_qtimOtherInstanceCheck.start(400);
     }
 }

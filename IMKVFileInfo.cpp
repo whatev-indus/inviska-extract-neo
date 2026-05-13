@@ -14,7 +14,7 @@ void IMKVFileInfo::Reset()
     m_iVideoTrackCount    = 0;
     m_iAudioTrackCount    = 0;
     m_iSubtitleTrackCount = 0;
-    m_iAttatchmentCount   = 0;
+    m_iAttachmentCount   = 0;
     m_bHasChapters        = false;
     m_bHasCuesheet        = false;
     m_bHasTags            = false;
@@ -31,7 +31,7 @@ void IMKVFileInfo::UpdateTrackCounts(const int kiTrackType)
                                     break;
     case IUIExtract::Subtitles  :   ++m_iSubtitleTrackCount;
                                     break;
-    case IUIExtract::Attachment :   ++m_iAttatchmentCount;
+    case IUIExtract::Attachment :   ++m_iAttachmentCount;
                                     break;
     case IUIExtract::Chapters   :   m_bHasChapters = true;
                                     break;
@@ -50,7 +50,7 @@ int IMKVFileInfo::GetTrackCountForType(const int kiTrackType)
     case IUIExtract::Video      :   return m_iVideoTrackCount;
     case IUIExtract::Audio      :   return m_iAudioTrackCount;
     case IUIExtract::Subtitles  :   return m_iSubtitleTrackCount;
-    case IUIExtract::Attachment :   return m_iAttatchmentCount;
+    case IUIExtract::Attachment :   return m_iAttachmentCount;
     case IUIExtract::Chapters   :   return m_bHasChapters ? 1 : 0;
     case IUIExtract::Cuesheet   :   return m_bHasCuesheet ? 1 : 0;
     case IUIExtract::Tags       :   return m_bHasTags     ? 1 : 0;
@@ -107,9 +107,9 @@ void IMKVFileInfo::UpdateFileMaxValues(const IMKVFileInfo & krfinfFileInfo, IUIE
         puiextExtractUI->AddToBatchExtractList(tr("Tags"), IUIExtract::Tags);
     }
 
-    if (m_iAttatchmentCount == 0 && krfinfFileInfo.m_iAttatchmentCount != 0)
+    if (m_iAttachmentCount == 0 && krfinfFileInfo.m_iAttachmentCount != 0)
     {
-        m_iAttatchmentCount = 1;
+        m_iAttachmentCount = 1;
         puiextExtractUI->AddToBatchExtractList(tr("Attachments"), IUIExtract::AttachmentsGroup);
     }
 }

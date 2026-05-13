@@ -45,7 +45,7 @@ IDlgExtractProgress::IDlgExtractProgress(IUIMainWindow* pmwMainWindow, const int
 
     m_pqpbAbortClose = new QPushButton("Abort", this);
     m_pqpbAbortClose->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    connect(m_pqpbAbortClose, SIGNAL(clicked()), this, SLOT(AbortCloseClicked()));
+    connect(m_pqpbAbortClose, &QPushButton::clicked, this, &IDlgExtractProgress::AbortCloseClicked);
 
     QVBoxLayout* qvblLabels = new QVBoxLayout;
     qvblLabels->addWidget(pqlblFilesProcessed);
@@ -114,7 +114,7 @@ void IDlgExtractProgress::SetPhase(const int kiExtractionPhase)
                                             break;
     case IMKVExtractProcess::Tags         : m_pqlblStatusMessage->setText(tr("<h2>Status: Extracting Tags</h2>"));
                                             break;
-    case IMKVExtractProcess::Attachmenets : m_pqlblStatusMessage->setText(tr("<h2>Status: Extracting Attachments</h2>"));
+    case IMKVExtractProcess::Attachments  : m_pqlblStatusMessage->setText(tr("<h2>Status: Extracting Attachments</h2>"));
                                             break;
     case IMKVExtractProcess::Complete     : m_pqlblStatusMessage->setText(tr("<h2>Status: Extracton Complete</h2>"));
                                             break;

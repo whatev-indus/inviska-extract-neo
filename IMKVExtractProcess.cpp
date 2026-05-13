@@ -19,10 +19,10 @@ IMKVExtractProcess::IMKVExtractProcess(IUIExtract* puiextExtractUI, QTreeWidgetI
     m_iPhase                = Initial;
 
     m_qprocMKVExtract.setProgram(m_puiextExtractUI->GetMKVToolNix()->GetMKVExtractPath());
-    connect(&m_qprocMKVExtract, SIGNAL(readyReadStandardOutput()),             this, SLOT(MKVExtractOutputText()));
-    connect(&m_qprocMKVExtract, SIGNAL(readyReadStandardError()),              this, SLOT(MKVExtractErrorText()));
-    connect(&m_qprocMKVExtract, SIGNAL(finished(int, QProcess::ExitStatus)),   this, SLOT(MKVExtractFinished(int, QProcess::ExitStatus)));
-    connect(&m_qprocMKVExtract, SIGNAL(errorOccurred(QProcess::ProcessError)), this, SLOT(MKVExtractError(QProcess::ProcessError)));
+    connect(&m_qprocMKVExtract, &QProcess::readyReadStandardOutput,  this, &IMKVExtractProcess::MKVExtractOutputText);
+    connect(&m_qprocMKVExtract, &QProcess::readyReadStandardError,   this, &IMKVExtractProcess::MKVExtractErrorText);
+    connect(&m_qprocMKVExtract, &QProcess::finished,                 this, &IMKVExtractProcess::MKVExtractFinished);
+    connect(&m_qprocMKVExtract, &QProcess::errorOccurred,            this, &IMKVExtractProcess::MKVExtractError);
 
     #ifdef Q_OS_MACOS
     m_qprocMKVExtract.setEnvironment(QStringList("LANG=en_US.UTF-8"));
@@ -76,7 +76,7 @@ void IMKVExtractProcess::SetItemIndecies()
         case Tags         : m_iTagsIndex = iIndex;
                             break;
 
-        case Attachmenets : m_iAttachmentsIndex = iIndex;
+        case Attachments : m_iAttachmentsIndex = iIndex;
                             break;
         }
     }
@@ -97,7 +97,7 @@ void IMKVExtractProcess::PerformNextPhase()
     case Tags         : ExtractChaptersCuesheetTags();
                         break;
 
-    case Attachmenets : ExtractAttachments();
+    case Attachments : ExtractAttachments();
                         break;
 
     case Complete     : emit ExtractionComplete(m_pqtwiFileInfo);
@@ -243,8 +243,8 @@ void IMKVExtractProcess::ExtractChaptersCuesheetTags()
 
 void IMKVExtractProcess::ExtractAttachments()
 {
-    bool bBatchExtractAttachmenets = OnBatchExtractList(IUIExtract::AttachmentsGroup, 0);
-    if (m_iAttachmentsIndex == -1 || (m_pqtwiFileInfo->child(m_iAttachmentsIndex)->checkState(0) == Qt::Unchecked && bBatchExtractAttachmenets == false))
+    bool bBatchExtractAttachments = OnBatchExtractList(IUIExtract::AttachmentsGroup, 0);
+    if (m_iAttachmentsIndex == -1 || (m_pqtwiFileInfo->child(m_iAttachmentsIndex)->checkState(0) == Qt::Unchecked && bBatchExtractAttachments == false))
     {
         PerformNextPhase();
         return;
@@ -290,11 +290,11 @@ void IMKVExtractProcess::ExtractAttachments()
 
     QTreeWidgetItem* pqtwiAttachmentsGroup = m_pqtwiFileInfo->child(m_iAttachmentsIndex);
     QTreeWidgetItem* pqtwiAttachmentItem = nullptr;
-    int iNumAttachmenets = pqtwiAttachmentsGroup->childCount();
-    for (int iIndex = 0 ; iIndex < iNumAttachmenets ; ++iIndex)
+    int iNumAttachments = pqtwiAttachmentsGroup->childCount();
+    for (int iIndex = 0 ; iIndex < iNumAttachments ; ++iIndex)
     {
         pqtwiAttachmentItem = pqtwiAttachmentsGroup->child(iIndex);
-        if (pqtwiAttachmentItem->checkState(0) == Qt::Checked || bBatchExtractAttachmenets)
+        if (pqtwiAttachmentItem->checkState(0) == Qt::Checked || bBatchExtractAttachments)
             m_qstrlArguments.append(pqtwiAttachmentItem->data(0, IUIExtract::TrackIDRole).toString() + ':' + qstrAttOutputPath + pqtwiAttachmentItem->text(0));
     }
 
@@ -369,7 +369,7 @@ int IMKVExtractProcess::GetItemPhase(const int kiItemType)
 
     case IUIExtract::Tags               : return Tags;
 
-    case IUIExtract::AttachmentsGroup   : return Attachmenets;
+    case IUIExtract::AttachmentsGroup   : return Attachments;
     }
 
     return Invalid;

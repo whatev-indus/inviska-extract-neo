@@ -43,7 +43,7 @@ private:
 
 public:
     // Values to use to use for m_iPhase
-    enum                        Phase {Initial, Tracks, Timestamps, Cues, Chapters, Cuesheet, Tags, Attachmenets, Complete, Aborted, Invalid};
+    enum                        Phase {Initial, Tracks, Timestamps, Cues, Chapters, Cuesheet, Tags, Attachments, Complete, Aborted, Invalid};
 
 public:
     IMKVExtractProcess(IUIExtract* puiextExtractUI, QTreeWidgetItem* pqtwiFileInfo);

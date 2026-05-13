@@ -24,7 +24,7 @@ public:
     void Reset();
 
     // Updates the file information and sets the passed string to the attachment filename
-    void GenerateAttatchmentDescription(IMKVFileInfo & rfinfoFileInfo, QString & rqstrDescription);
+    void GenerateAttachmentDescription(IMKVFileInfo & rfinfoFileInfo, QString & rqstrDescription);
 
     // Read attachment information from passed JSON object
     void ReadAttachmentInfo(QJsonObject qjobjAttachmentObject);
